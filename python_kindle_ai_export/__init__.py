@@ -1,16 +1,30 @@
-import logging
-import os
-import sys
+"""Kindle AI Export - Python package."""
 
+import os
+from .cli import cli, main
+from .models import (
+    BookChapter,
+    BookMetadata,
+    ContentChunk,
+    ExtractionStatus,
+    PageChunk,
+    PageNav,
+    TocItem,
+)
 from .version import __version__
 
-log = logging.getLogger(__name__)
+# Suppress pydantic-ai banner unless user requested otherwise
+os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
 
-
-def main():
-    if "--version" in sys.argv or "-V" in sys.argv:
-        print(f"python-kindle-ai-export version {__version__}")
-        sys.exit(0)
-
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "WARNING"))
-    log.info("Hello, Logs!")
+__all__ = [
+    "BookChapter",
+    "BookMetadata",
+    "ContentChunk",
+    "ExtractionStatus",
+    "PageChunk",
+    "PageNav",
+    "TocItem",
+    "__version__",
+    "cli",
+    "main",
+]

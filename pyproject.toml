@@ -1,8 +1,8 @@
 [project]
 name = "python-kindle-ai-export"
 version = "0.1.0"
-description = ""
-keywords = []
+description = "Export Kindle books to Markdown, PDF, and audiobooks using Camoufox and Pydantic-AI"
+keywords = ["kindle", "pydantic-ai", "camoufox", "audiobook"]
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
@@ -12,7 +12,20 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
-dependencies = []
+dependencies = [
+    "camoufox>=0.5.6",
+    "click>=8.5.0",
+    "funcy>=2.1",
+    "httpx>=0.28.1",
+    "mutagen>=1.48.1",
+    "pillow>=12.3.0",
+    "pydantic>=2.13.5",
+    "pydantic-ai>=2.43.0",
+    "python-dotenv>=1.2.3",
+    "reportlab>=5.0.1",
+    "structlog-config>=0.15.0",
+    "whenever>=0.10.5",
+]
 authors = [{ name = "Michael Bianco", email = "mike@mikebian.co" }]
 urls = { "Repository" = "https://github.com/iloveitaly/python-kindle-ai-export" }
 
@@ -39,12 +52,14 @@ dev = [
     "pytest-cov>=7.0.0",
     "covdefaults>=2.3.0",
     "beautiful-traceback>=1.0.2",
+    "pytest-asyncio>=1.4.0",
 ]
 
 [tool.pyright]
 exclude = ["examples/", "playground/", "tmp/", ".venv/", "tests/"]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 addopts = "--cov --cov-report=term-missing --cov-report=html:tmp/htmlcov"
 
 [tool.coverage.run]
