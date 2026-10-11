@@ -531,7 +531,8 @@ async def extract_kindle_book(
                 return await page.screenshot(type="png", animations="disabled")
 
         async def advance(direction: Literal["left", "right"], old_key: str) -> bool:
-            for attempt in range(3):
+            key_name = "ArrowLeft" if direction == "left" else "ArrowRight"
+            for attempt in range(4):
                 if cancelled and not restoring:
                     break
                 await dismiss_alerts()
@@ -540,13 +541,21 @@ async def extract_kindle_book(
 
                 chevron = page.locator(f".kr-chevron-container-{direction}").first
                 await pacer.pause(f"turn_{direction}")
-                try:
-                    await chevron.click(timeout=3000)
-                except Exception:
+                if attempt == 0:
+                    try:
+                        await chevron.click(timeout=3000)
+                    except Exception:
+                        await dismiss_alerts()
+                        await page.keyboard.press(key_name)
+                else:
                     await dismiss_alerts()
-                    await page.keyboard.press("ArrowLeft" if direction == "left" else "ArrowRight")
+                    await page.keyboard.press(key_name)
+                    try:
+                        await chevron.click(timeout=1000)
+                    except Exception:
+                        pass
 
-                for _ in range(15):
+                for _ in range(25):
                     if cancelled and not restoring:
                         break
                     await sleeper(0.2)
@@ -560,32 +569,72 @@ async def extract_kindle_book(
 
         async def go_to_position(target_nav: PageNav) -> None:
             await dismiss_alerts()
-            header = page.locator("#reader-header")
             try:
-                await pacer.pause("hover_header")
-                await header.hover(force=True)
+                await page.locator("ion-backdrop, ion-popover").first.wait_for(state="hidden", timeout=3000)
             except Exception:
                 pass
 
             menu_btn = page.locator('ion-button[aria-label="Reader menu"], button[aria-label="Reader menu"]').first
-            await pacer.pause("open_reader_menu")
-            await menu_btn.click()
-
             item = page.locator('ion-item[role="listitem"], ion-item').filter(has_text=re.compile(r"Go to (Page|Location)", re.IGNORECASE)).first
-            await pacer.pause("open_go_to")
-            await item.click()
 
-            modal = page.locator("ion-modal.go-to-modal, ion-modal.show-modal, ion-modal").first
-            field = page.locator("ion-modal input").first
+            for _ in range(3):
+                if cancelled and not restoring:
+                    break
+                await pacer.pause("open_reader_menu")
+                try:
+                    await menu_btn.click(timeout=3000)
+                except Exception:
+                    try:
+                        renderer = page.locator("#kr-renderer")
+                        if await renderer.is_visible():
+                            box = await renderer.bounding_box()
+                            if box:
+                                await page.mouse.click(box["x"] + box["width"] / 2, box["y"] + 50)
+                            else:
+                                await page.mouse.click(400, 50)
+                    except Exception:
+                        pass
+
+                try:
+                    await item.wait_for(state="visible", timeout=3000)
+                    break
+                except Exception:
+                    await sleeper(0.5)
+
+            await pacer.pause("open_go_to")
+            try:
+                await item.click(timeout=5000)
+            except Exception:
+                await item.click(force=True)
+
+            modal = page.locator("ion-modal:not(.overlay-hidden), ion-modal.go-to-modal, ion-modal.show-modal").first
+            try:
+                await modal.wait_for(state="visible", timeout=5000)
+            except Exception:
+                modal = page.locator("ion-modal").first
+
+            field = page.locator("ion-modal:not(.overlay-hidden) input, ion-modal input").first
             val = target_nav.location if target_nav.location is not None else (target_nav.page or target_nav.label)
             if val is None:
                 raise ValueError("Original navigation position is unavailable")
 
+            str_val = str(val)
             await pacer.pause("fill_go_to")
-            await field.fill(str(val))
+            try:
+                await field.fill(str_val)
+            except Exception:
+                # In real browsers, ion-modal input is input[type=number] which rejects non-digit Roman labels (e.g. 'v').
+                # Fall back to page 1 for front matter.
+                if not str_val.isdigit():
+                    await field.fill("1")
+                else:
+                    raise
             go_btn = page.locator('[item-i-d="go-to-modal-go-button"], ion-modal ion-button[item-i-d="go-to-modal-go-button"], ion-modal button').filter(has_text=re.compile(r"^Go$", re.IGNORECASE)).first
             await pacer.pause("submit_go_to")
-            await go_btn.click()
+            try:
+                await go_btn.click(timeout=5000)
+            except Exception:
+                await go_btn.click(force=True)
 
             try:
                 await modal.wait_for(state="hidden", timeout=10_000)
